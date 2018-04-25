@@ -200,7 +200,7 @@ test('`announce_peer` with bad port', function (t) {
     var dht2 = new DHT({ bootstrap: '127.0.0.1:' + dht1.address().port, timeout: 100 })
     var infoHash = common.randomId()
 
-    dht2.announce(infoHash, 99999, function (err) {
+    dht2.announce({ infoHash }, 99999, function (err) {
       dht1.destroy()
       dht2.destroy()
       t.ok(err, 'had error')

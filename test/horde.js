@@ -68,7 +68,7 @@ function findPeers (numInstances, t, cb) {
     makeFriends(dhts)
 
     // lookup from other DHTs
-    dhts[0].announce(infoHash, 9998, function () {
+    dhts[0].announce({ infoHash }, 9998, function () {
       dhts[1].lookup(infoHash)
     })
   })

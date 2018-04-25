@@ -50,7 +50,7 @@
   },
   "scripts": {
     "update-authors": "./bin/update-authors.sh",
-    "test": "standard && tape test/*.js",
+    "test": "standard --fix && tape test/*.js",
     "test-live": "tape test/live/*.js"
   }
 }

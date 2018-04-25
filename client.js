@@ -404,18 +404,18 @@ DHT.prototype.get = function (key, opts, cb) {
   }
 }
 
-DHT.prototype.announce = function (infoHash, port, cb) {
-  if (typeof port === 'function') return this.announce(infoHash, 0, port)
-  infoHash = toBuffer(infoHash)
+DHT.prototype.announce = function (payload, port, cb) {
+  if (typeof port === 'function') return this.announce(payload, 0, port)
+  var infoHash = toBuffer(payload.infoHash)
   if (!cb) cb = noop
 
   var table = this._tables.get(infoHash.toString('hex'))
-  if (!table) return this._preannounce(infoHash, port, cb)
+  if (!table) return this._preannounce({infoHash, weight: payload.weight}, port, cb)
 
   if (this._host) {
     var dhtPort = this.listening ? this.address().port : 0
     this._addPeer(
-      {host: this._host, port: port || dhtPort},
+      {host: this._host, port: port || dhtPort, weight: payload.weight},
       infoHash,
       {host: this._host, port: dhtPort}
     )
@@ -428,7 +428,8 @@ DHT.prototype.announce = function (infoHash, port, cb) {
       token: null, // queryAll sets this
       info_hash: infoHash,
       port: port,
-      implied_port: port ? 0 : 1
+      implied_port: port ? 0 : 1,
+      weight: payload.weight
     }
   }
 
@@ -436,13 +437,13 @@ DHT.prototype.announce = function (infoHash, port, cb) {
   this._rpc.queryAll(table.closest(infoHash), message, null, cb)
 }
 
-DHT.prototype._preannounce = function (infoHash, port, cb) {
+DHT.prototype._preannounce = function (payload, port, cb) {
   var self = this
 
-  this.lookup(infoHash, function (err) {
+  this.lookup(payload.infoHash, function (err) {
     if (self.destroyed) return cb(new Error('dht is destroyed'))
     if (err) return cb(err)
-    self.announce(infoHash, port, cb)
+    self.announce(payload, port, cb)
   })
 }
 
@@ -573,14 +574,14 @@ DHT.prototype._onannouncepeer = function (query, peer) {
     return this._rpc.error(peer, query, [203, 'cannot `announce_peer` with bad token'])
   }
 
-  this.emit('announce_peer', infoHash, {host: host, port: peer.port})
+  this.emit('announce_peer', infoHash, {host: host, port: peer.port, weight: query.a.weight})
 
-  this._addPeer({host: host, port: port}, infoHash, {host: host, port: peer.port})
+  this._addPeer({host: host, port: port, weight: query.a.weight}, infoHash, {host: host, port: peer.port})
   this._rpc.response(peer, query, {id: this._rpc.id})
 }
 
 DHT.prototype._addPeer = function (peer, infoHash, from) {
-  this._peers.add(infoHash.toString('hex'), encodePeer(peer.host, peer.port))
+  this._peers.add(infoHash.toString('hex'), encodePeer(peer.host, peer.port, peer.weight))
   this.emit('announce', peer, infoHash, from)
 }
 
@@ -752,11 +753,12 @@ function createGetResponse (id, token, value) {
   return r
 }
 
-function encodePeer (host, port) {
-  var buf = Buffer.allocUnsafe(6)
+function encodePeer (host, port, weight) {
+  var buf = Buffer.allocUnsafe(8)
   var ip = host.split('.')
   for (var i = 0; i < 4; i++) buf[i] = parseInt(ip[i] || 0, 10)
   buf.writeUInt16BE(port, 4)
+  buf.writeUInt16BE(weight, 6)
   return buf
 }
 
@@ -767,13 +769,18 @@ function decodePeers (buf) {
     for (var i = 0; i < buf.length; i++) {
       var port = buf[i].readUInt16BE(4)
       if (!port) continue
+
+      var weight = buf[i].readUInt16BE(6)
+
       peers.push({
         host: parseIp(buf[i], 0),
-        port: port
+        port: port,
+        weight: weight
       })
     }
   } catch (err) {
     // do nothing
+    console.log('Matchka', err)
   }
 
   return peers
