@@ -466,6 +466,11 @@ DHT.prototype.lookup = function (infoHash, cb) {
   function emit (values, from) {
     if (!values) values = self._peers.get(infoHash.toString('hex'), 100)
     var peers = decodePeers(values)
+
+    if (peers.length) {
+      self.emit('peers', peers, infoHash, from || null)
+    }
+
     for (var i = 0; i < peers.length; i++) {
       self.emit('peer', peers[i], infoHash, from || null)
     }
