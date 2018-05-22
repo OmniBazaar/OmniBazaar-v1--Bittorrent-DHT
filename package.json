@@ -1,5 +1,5 @@
 {
-  "name": "bittorrent-dht",
+  "name": "omnibazaar-bittorrent-dht",
   "description": "Simple, robust, BitTorrent DHT implementation",
   "version": "8.2.0",
   "author": {
